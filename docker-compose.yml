@@ -1,0 +1,43 @@
+version: '3.8'
+
+services:
+  pgdb:
+    image: postgres:15
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: pgcatalog
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  pgadmin:
+    image: dpage/pgadmin4
+    restart: always
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@admin.com
+      PGADMIN_DEFAULT_PASSWORD: admin
+    ports:
+      - "8081:80"
+
+  mock_external:
+    build: ./mock_external_service
+    ports:
+      - "8050:8050"
+
+  pg-catalog-sync:
+    build: .
+    environment:
+      DATABASE_URL: postgres://postgres:postgres@pgdb:5432/pgcatalog?sslmode=disable
+      EXTERNAL_METADATA_URL: http://mock_external:8050/api/metadata
+      PORT: 8080
+    ports:
+      - "8080:8080"
+    depends_on:
+      pgdb:
+        condition: service_healthy
